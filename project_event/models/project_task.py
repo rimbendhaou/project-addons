@@ -349,20 +349,15 @@ class Task(models.Model):
     @api.depends('date_start', 'parent_id.date_start')
     def _compute_order_task(self):
         for task in self:
-            if self.has_computable_order(task):
-                activity_date_start = task.parent_id.date_start
-                if task.date_start:
-                    task.task_order = self.get_task_order(
-                        task.date_start,
-                        activity_date_start,
-                        '%Y-%m-%d %H:%M:%S'
-                    )
-
-    @staticmethod
-    def has_computable_order(task):
-        return (task.activity_task_type == 'task' and
-                task.parent_id and
-                task.parent_id.date_start)
+            if task.activity_task_type == 'task':
+                if task.parent_id and task.parent_id.date_start:
+                    activity_date_start = task.parent_id.date_start
+                    if task.date_start:
+                        task.task_order = self.get_task_order(
+                            task.date_start,
+                            activity_date_start,
+                            '%Y-%m-%d %H:%M:%S'
+                        )
 
     @api.onchange('spectators')
     def onchange_spectators(self):
@@ -706,9 +701,10 @@ class Task(models.Model):
             res += self.room_id.name + '<br>' if (
                 self.room_id) else self.equipment_id.name + '<br>'
         for attendee in self.get_partners():
-            hres = self.get_booked_attendees(attendee)
-            if hres:
-                res += hres[2] + '<br>'
+            hres = self.is_hr_resource_booked(attendee)
+            partner_attendee = self.env['res.partner'].browse(attendee)
+            if hres and partner_attendee:
+                res += partner_attendee.name + '<br>'
         if self.is_activity():
             for child in self.child_ids:
                 if child.is_resource_booked():
@@ -721,9 +717,10 @@ class Task(models.Model):
                             child.date_start + ' - ' + child.date_end +
                             ' - ' + child.code + '<br>')
                 for attendee in child.get_partners():
-                    hres = child.get_booked_attendees(attendee)
-                    if hres:
-                        res += hres[2] + \
+                    hres = child.is_hr_resource_booked(attendee)
+                    attendee_partner = self.env['res.partner'].browse(attendee)
+                    if hres and attendee_partner:
+                        res += attendee_partner.name + \
                             ' - ' + child.date_start + \
                             ' - ' + child.date_end + \
                             ' - ' + child.code + \
@@ -846,6 +843,7 @@ class Task(models.Model):
             self.send_message('option')
             self.write({'task_state': 'option'})
         else:
+            self.draft_resources_reservation()
             self.do_task_reservation()
             self.write({'task_state': 'option'})
 
@@ -1002,6 +1000,15 @@ class Task(models.Model):
                 return True
         return False
 
+    def is_hr_resource_booked(self, attendee):
+        overlaps_partners = self.env['calendar.event'].search([
+            ('partner_ids', 'in', attendee),
+            ('start', '<', self.date_end),
+            ('stop', '>', self.date_start),
+            ('state', '!=', 'cancelled'),
+        ])
+        return len(overlaps_partners) > 0
+
     @api.multi
     def get_confirmation_wizard(self, action):
         self.ensure_one()
@@ -1030,16 +1037,3 @@ class Task(models.Model):
     def check_task_state(task_state_in):
         return task_state_in in \
             ['draft', 'option', 'postponed', 'canceled']
-
-    def get_booked_attendees(self, attendee):
-        vals = {
-            'start': self.date_start,
-            'stop': self.date_end,
-            'partner_ids': [(6, 0, [attendee])]}
-        v_event = self.env['calendar.event'].new(vals)
-        [(6, 0, self.get_partners())]
-        try:
-            v_event._check_resources_booked(v_event, v_event.partner_ids)
-        except Exception as e:
-            return [e.name, e.name.split(' ')[1], e.name.split(' ')[2]]
-        return ''

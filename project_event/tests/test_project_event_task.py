@@ -592,21 +592,22 @@ class TestProjectEventTask(TestProjectEventCommon):
             len(new_activity.child_ids)
         )
 
-    def test_260_get_booked_attendees(self):
-        self.assertEqual(self.task_1.get_booked_resources(), '')
-        self.set_employee_not_allowed_double_booking(self.employee_1)
-        self.assign_attendees_to_task(self.task_1, self.employee_1.id)
-        self.task_1.do_reservation()
-        self.assign_attendees_to_task(self.task_2, self.employee_1.id)
-        self.assertEqual(
-            self.task_2.get_booked_resources(),
-            'Test Room 1<br>Partner<br>')
-
-    @staticmethod
-    def assign_attendees_to_task(task, employee_id):
-        vals = {'employee_ids': [(6, 0, [employee_id])]}
-        task.write(vals)
-
-    @staticmethod
-    def set_employee_not_allowed_double_booking(employee):
-        return employee.write({'allowed_double_book': False})
+    def test_260_is_hr_resource_booked(self):
+        vals = {
+            'name': 'Calendar Event Test HR Booking',
+            'start': fields.Datetime.to_string(datetime.today()),
+            'stop': fields.Datetime.to_string(datetime.today() +
+                                              timedelta(hours=4)),
+            'partner_ids': [(6, 0, [
+                self.partner_1.id, self.partner_2.id])],
+        }
+        self.env['calendar.event'].create(vals)
+        self.assertTrue(
+            self.task_1.is_hr_resource_booked(self.partner_1.id)
+        )
+        self.assertTrue(
+            self.task_1.is_hr_resource_booked(self.partner_2.id)
+        )
+        self.assertFalse(
+            self.task_1.is_hr_resource_booked(self.partner_3.id)
+        )
