@@ -1455,3 +1455,9 @@ msgstr ""
 msgid "this room is not bookable"
 msgstr ""
 
+#. module: project_event
+#: model:ir.model,name:project_event.model_res_partner_category_test
+msgid "test de la chaine"
+msgstr ""
+
+
