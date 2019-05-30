@@ -1,0 +1,10 @@
+[main]
+host = https://www.transifex.com
+
+[rim-project-addons-11.project-event-pot]
+file_filter = project_event/i18n/<lang>.po
+minimum_perc = 0
+source_file = project_event/i18n/project_event.pot
+source_lang = en
+type = PO
+
