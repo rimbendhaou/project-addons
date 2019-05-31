@@ -1465,4 +1465,9 @@ msgstr ""
 msgid "test de la chaine2"
 msgstr ""
 
+#. module: project_event
+#: model:ir.model,name:project_event.model_res_partner_category_test3
+msgid "test de la chaine3"
+msgstr ""
+
 
